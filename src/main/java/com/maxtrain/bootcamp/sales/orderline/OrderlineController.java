@@ -3,20 +3,26 @@ package com.maxtrain.bootcamp.sales.orderline;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.maxtrain.bootcamp.sales.item.Item;
+import com.maxtrain.bootcamp.sales.item.ItemRepository;
 import com.maxtrain.bootcamp.sales.order.Order;
 import com.maxtrain.bootcamp.sales.order.OrderRepository;
 
+@CrossOrigin
+@RestController
+@RequestMapping("/api/orderlines")
 public class OrderlineController {
-
 	
 	@Autowired
 	private OrderlineRepository ordlnRepo;
 	@Autowired
 	private OrderRepository ordRepo;
-
+	@Autowired
+	private ItemRepository itemRepo;
 	
 	@GetMapping
 	public ResponseEntity<Iterable<Orderline>> getOrderlines(){
@@ -37,6 +43,7 @@ public class OrderlineController {
 	@PostMapping
 	public ResponseEntity<Orderline> postOrderline(@RequestBody Orderline orderline) {
 		Orderline newOrderline = ordlnRepo.save(orderline);
+		ordlnRepo.findById(newOrderline.getId());
 		//below if/boolean statements added to make recalculate work
 		Optional<Order> order = ordRepo.findById(orderline.getOrder().getId());
 		if(!order.isEmpty()) {
@@ -92,23 +99,27 @@ public class OrderlineController {
 			return false;
 		}
 	//get the order
-	Order order = anOrder.get();
+		Order order = anOrder.get();
 	//get all orderlines
-	Iterable<Orderline> orderlines = ordlnRepo.findByOrderId(orderId);
-	double total = 0;
-	for(Orderline ol : orderlines) {
-		//for each orderline, multiply the quantity times the price
-		//and add it to the total
-		total += ol.getQuantity() * ol.getItem().getPrice();
-	}
-	//update the total in the order
-	order.setTotal(total);
-	ordRepo.save(order);
+		Iterable<Orderline> orderlines = ordlnRepo.findByOrderId(orderId);
+		double total = 0;
+		for(Orderline ol : orderlines) {
+			//after a POST, the item instance may be null
+			if(ol.getItem().getName() == null) {
+				Item item = itemRepo.findById(ol.getItem().getId()).get();
+				ol.setItem(item);
+			}
+			//for each orderline, multiply the quantity times the price
+			//and add it to the total
+			total += ol.getQuantity() * ol.getItem().getPrice();
+		}
+		//update the total in the order
+		order.setTotal(total);
+		ordRepo.save(order);
 	
 	return true;
 	}
 	
 	
 	
-
 }
